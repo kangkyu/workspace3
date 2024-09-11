@@ -13,6 +13,33 @@ import (
 	"github.com/google/uuid"
 )
 
+type Receipt struct {
+	Retailer     string `json:"retailer"`
+	PurchaseDate string `json:"purchaseDate"`
+	PurchaseTime string `json:"purchaseTime"`
+	Total        string `json:"total"`
+	Items        []Item `json:"items"`
+}
+
+type Item struct {
+	ShortDescription string `json:"shortDescription"`
+	Price            string `json:"price"`
+}
+
+type ReceiptProcessResponse struct {
+	ID string `json:"id"`
+}
+
+type ReceiptRewardResponse struct {
+	Points int `json:"points"`
+}
+
+type Reward struct {
+	id      string
+	points  int
+	receipt Receipt
+}
+
 var rewards = []Reward{}
 
 func main() {
@@ -77,33 +104,6 @@ func receiptProcess(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Receipt struct {
-	Retailer string `json:"retailer"`
-	PurchaseDate string `json:"purchaseDate"`
-	PurchaseTime string `json:"purchaseTime"`
-	Total string `json:"total"`
-	Items []Item `json:"items"`
-}
-
-type Item struct {
-	ShortDescription string `json:"shortDescription"`
-	Price string `json:"price"`
-}
-
-type ReceiptProcessResponse struct {
-	ID string `json:"id"`
-}
-
-type ReceiptRewardResponse struct {
-	Points int `json:"points"`
-}
-
-type Reward struct {
-	id string
-	points int
-	receipt Receipt
-}
-
 func findReceipt(id string) (Reward, bool) {
 	var reward Reward
 	for _, v := range rewards {
@@ -116,15 +116,15 @@ func findReceipt(id string) (Reward, bool) {
 
 func rewardCalculate(receipt Receipt) int {
 	var points int
-/*
-	One point for every alphanumeric character in the retailer name.
-	50 points if the total is a round dollar amount with no cents.
-	25 points if the total is a multiple of 0.25.
-	5 points for every two items on the receipt.
-	If the trimmed length of the item description is a multiple of 3, multiply the price by 0.2 and round up to the nearest integer. The result is the number of points earned.
-	6 points if the day in the purchase date is odd.
-	10 points if the time of purchase is after 2:00pm and before 4:00pm.
-*/
+	/*
+		One point for every alphanumeric character in the retailer name.
+		50 points if the total is a round dollar amount with no cents.
+		25 points if the total is a multiple of 0.25.
+		5 points for every two items on the receipt.
+		If the trimmed length of the item description is a multiple of 3, multiply the price by 0.2 and round up to the nearest integer. The result is the number of points earned.
+		6 points if the day in the purchase date is odd.
+		10 points if the time of purchase is after 2:00pm and before 4:00pm.
+	*/
 
 	totalFloat, err := strconv.ParseFloat(strings.TrimSpace(receipt.Total), 64)
 	if err == nil {
@@ -139,7 +139,7 @@ func rewardCalculate(receipt Receipt) int {
 	points += (len(receipt.Items) / 2) * 5
 
 	for _, item := range receipt.Items {
-		if len(strings.TrimSpace(item.ShortDescription)) % 3 == 0 {
+		if len(strings.TrimSpace(item.ShortDescription))%3 == 0 {
 			priceFloat, err := strconv.ParseFloat(strings.TrimSpace(item.Price), 64)
 			if err == nil {
 				points += int(math.Ceil(priceFloat * 0.2))
@@ -148,15 +148,15 @@ func rewardCalculate(receipt Receipt) int {
 	}
 
 	purchaseDate, err := time.Parse("2006-01-02", strings.TrimSpace(receipt.PurchaseDate))
-	if err == nil && purchaseDate.Day() % 2 == 1 {
+	if err == nil && purchaseDate.Day()%2 == 1 {
 		points += 6
 	}
 
-	purchaseTime, err := time.Parse("2006-01-02 15:04", strings.TrimSpace(receipt.PurchaseDate) + " " + strings.TrimSpace(receipt.PurchaseTime))
+	purchaseTime, err := time.Parse("2006-01-02 15:04", strings.TrimSpace(receipt.PurchaseDate)+" "+strings.TrimSpace(receipt.PurchaseTime))
 	if err == nil {
 
-		twoPM, _ := time.Parse("2006-01-02 15:04", strings.TrimSpace(receipt.PurchaseDate) + " " + "14:00")
-		fourPM, _ := time.Parse("2006-01-02 15:04", strings.TrimSpace(receipt.PurchaseDate) + " " + "16:00")
+		twoPM, _ := time.Parse("2006-01-02 15:04", strings.TrimSpace(receipt.PurchaseDate)+" "+"14:00")
+		fourPM, _ := time.Parse("2006-01-02 15:04", strings.TrimSpace(receipt.PurchaseDate)+" "+"16:00")
 
 		if purchaseTime.After(twoPM) && purchaseTime.Before(fourPM) {
 			points += 10
